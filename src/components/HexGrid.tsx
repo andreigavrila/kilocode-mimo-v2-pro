@@ -39,7 +39,7 @@ export function HexGrid() {
             const cy = rowIdx * ROW_SPACING + HEX_HEIGHT / 2 + rowOffset;
 
             const key = coordToKey({ col: colIdx, row: rowIdx });
-            const highlight = highlightedHexes.get(key);
+            const highlight = highlightedHexes[key];
             const isActive = activeStack && hex.occupant === activeStack;
             const occupant = hex.occupant;
 

@@ -35,7 +35,7 @@ interface AppState {
   combatLog: CombatLogEntry[];
   winner: Player | null;
   battleSummary: BattleSummary | null;
-  highlightedHexes: Map<string, 'reachable' | 'attack' | 'path'>;
+  highlightedHexes: Record<string, 'reachable' | 'attack' | 'path'>;
   hoveredHex: HexCoord | null;
   selectedStack: Stack | null;
   activeStack: Stack | null;
@@ -57,6 +57,7 @@ interface AppState {
   newGame: () => void;
 }
 
+
 function createDefaultPlayer(id: string, name: string, color: string, side: PlayerSide): Player {
   return { id, name, color, stacks: [], side };
 }
@@ -69,7 +70,7 @@ function addCombatLogEntry(
 }
 
 function computeHighlightedHexes(state: AppState): void {
-  state.highlightedHexes.clear();
+  state.highlightedHexes = {};
   const active = state.activeStack;
   if (!active || !isAlive(active)) return;
   if (active.hasActed) return;
@@ -81,7 +82,7 @@ function computeHighlightedHexes(state: AppState): void {
   if (stackState === 'ACTIVE') {
     const reachable = getReachableHexes(active, state.battlefield);
     for (const [key] of reachable) {
-      state.highlightedHexes.set(key, 'reachable');
+      state.highlightedHexes[key] = 'reachable';
     }
   }
 
@@ -95,11 +96,9 @@ function computeHighlightedHexes(state: AppState): void {
     const hasShots = (active.remainingShots ?? 0) > 0;
 
     if (isAdjacent) {
-      state.highlightedHexes.set(coordToKey(target.position), 'attack');
-    } else if (isRanged && hasShots && stackState !== 'ACTIVE') {
-      state.highlightedHexes.set(coordToKey(target.position), 'attack');
-    } else if (isRanged && hasShots && stackState === 'ACTIVE') {
-      state.highlightedHexes.set(coordToKey(target.position), 'attack');
+      state.highlightedHexes[coordToKey(target.position)] = 'attack';
+    } else if (isRanged && hasShots) {
+      state.highlightedHexes[coordToKey(target.position)] = 'attack';
     }
   }
 }
@@ -138,7 +137,7 @@ function endTurn(state: AppState): void {
       );
       state.gameState = GameState.FINISHED;
       state.activeStack = null;
-      state.highlightedHexes.clear();
+      state.highlightedHexes = {};
     } else {
       state.currentRound += 1;
       resetRound(allStacks);
@@ -167,7 +166,7 @@ export const useGameStore = create<AppState>()(immer((set, _get) => {
     combatLog: [],
     winner: null,
     battleSummary: null,
-    highlightedHexes: new Map(),
+    highlightedHexes: {},
     hoveredHex: null,
     selectedStack: null,
     activeStack: null,
@@ -260,7 +259,7 @@ export const useGameStore = create<AppState>()(immer((set, _get) => {
         if (!active || !isAlive(active) || active.hasActed) return;
 
         const key = coordToKey(hex);
-        const highlightType = state.highlightedHexes.get(key);
+        const highlightType = state.highlightedHexes[key];
 
         if (!highlightType) return;
 
@@ -284,7 +283,7 @@ export const useGameStore = create<AppState>()(immer((set, _get) => {
             message: `${active.unitType.name} moves to (${hex.col}, ${hex.row})`,
           });
 
-          state.highlightedHexes.clear();
+          state.highlightedHexes = {};
           computeHighlightedHexes(state);
         } else if (highlightType === 'attack') {
           const targetHex = state.battlefield.hexes[hex.col][hex.row];
@@ -423,19 +422,19 @@ export const useGameStore = create<AppState>()(immer((set, _get) => {
     hoverHex: (hex) =>
       set((state) => {
         state.hoveredHex = hex;
-        state.highlightedHexes.clear();
+        state.highlightedHexes = {};
         if (hex) {
           computeHighlightedHexes(state);
           const key = coordToKey(hex);
-          if (state.highlightedHexes.has(key) && state.highlightedHexes.get(key) === 'reachable') {
+          if (key in state.highlightedHexes && state.highlightedHexes[key] === 'reachable') {
             const active = state.activeStack;
             if (active) {
               const path = findPath(active.position, hex, state.battlefield);
               if (path) {
                 for (const p of path) {
                   const pk = coordToKey(p);
-                  if (!state.highlightedHexes.has(pk)) {
-                    state.highlightedHexes.set(pk, 'path');
+                  if (!(pk in state.highlightedHexes)) {
+                    state.highlightedHexes[pk] = 'path';
                   }
                 }
               }
@@ -499,7 +498,7 @@ export const useGameStore = create<AppState>()(immer((set, _get) => {
         state.combatLog = [];
         state.winner = null;
         state.battleSummary = null;
-        state.highlightedHexes = new Map();
+        state.highlightedHexes = {};
         state.hoveredHex = null;
         state.selectedStack = null;
         state.activeStack = null;
